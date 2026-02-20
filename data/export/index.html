@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8" />
+  <title>CSV-data – Valtion talousarvio</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.25rem; }
+    a { color: #58a6ff; }
+    a:hover { text-decoration: underline; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; }
+    .back { margin-bottom: 1.5rem; font-size: 0.9rem; }
+    p.note { font-size: 0.9rem; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <p class="back"><a href="../../index.html">← Takaisin talousarviosivuille</a></p>
+  <h1>CSV-data</h1>
+  <p class="note">Kaikki tiedostot käyttävät puolipistettä (;) sarjaerottimena. Lähde: budjetti.vm.fi, sovelluksen data.</p>
+  <ul>
+    <li><a href="totals_by_year.csv" download>totals_by_year.csv</a> – Kokonaismäärärahat vuosittain (2023–2026)</li>
+    <li><a href="hallinnonalat.csv" download>hallinnonalat.csv</a> – Hallinnonalat (id, nimet, kategoria, y2023–y2026)</li>
+    <li><a href="kustannuspaikat.csv" download>kustannuspaikat.csv</a> – Kustannuspaikkataso (hallinnonala, nimi, 2024/2025)</li>
+    <li><a href="kategoria_vuosittain.csv" download>kategoria_vuosittain.csv</a> – Kategoriat vuosittain (mandated, discretionary, jne.)</li>
+    <li><a href="menotyypit.csv" download>menotyypit.csv</a> – Menotyypit (kulutus-, siirto-, sijoitus-, muut menot)</li>
+    <li><a href="macro.csv" download>macro.csv</a> – Makro (BKT, velkasuhteet, alijäämä)</li>
+    <li><a href="velkasimulaatio.csv" download>velkasimulaatio.csv</a> – Velkasuhde skenaarioittain (2025–2035)</li>
+  </ul>
+  <p><a href="README.md">README</a> – Tiedostojen kuvaukset</p>
+</body>
+</html>

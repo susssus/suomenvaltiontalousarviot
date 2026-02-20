@@ -1,0 +1,16 @@
+id;name;short;category;y2023;y2024;y2025;y2026
+21;Eduskunta;Eduskunta;discretionary;137;146;148;148
+22;Tasavallan presidentti;Presidentti;discretionary;40;48;47;29
+23;Valtioneuvoston kanslia;VNK;discretionary;585;259;246;239
+24;Ulkoministeriön hallinnonala;Ulko;discretionary;1344;1284;1200;1155
+25;Oikeusministeriön hallinnonala;Oikeus;mandated;1121;1214;1202;1243
+26;Sisäministeriön hallinnonala;Sisä;discretionary;2560;2579;2207;2090
+27;Puolustusministeriön hallinnonala;Puolustus;discretionary;6401;5973;6527;6297
+28;Valtiovarainministeriön hallinnonala;VM;mandated;34226;38091;40210;41840
+29;Opetus- ja kulttuuriministeriön hallinnonala;Opetus;investment;7780;8041;8452;8934
+30;Maa- ja metsätalousministeriön hallinnonala;MMM;mixed;2720;2655;2621;2553
+31;Liikenne- ja viestintäministeriön hallinnonala;Liikenne;investment;3554;3616;3598;3849
+32;Työ- ja elinkeinoministeriön hallinnonala;TEM;mixed;3854;4232;3631;3349
+33;Sosiaali- ja terveysministeriön hallinnonala;STM;mandated;15905;16311;15221;14840
+35;Ympäristöministeriön hallinnonala;Ym;investment;373;243;252;494
+36;Valtionvelan korot;Korkomenot;mandated;2323;3177;3191;3246

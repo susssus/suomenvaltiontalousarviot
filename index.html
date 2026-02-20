@@ -90,6 +90,7 @@
 <body>
   <h1>Suomen valtion talousarvio 2023–2026</h1>
   <p>Lähteet: Suomen valtion talousarviot 2023–2026 (<a href="https://budjetti.vm.fi/" target="_blank" rel="noopener noreferrer">budjetti.vm.fi</a>). Kategorisointi (lakisääteinen / harkinnanvarainen / sijoitus) ja velkasimulaatio oma tulkinta.</p>
+  <p>Kaikki visualisointien taustalla oleva data on ladattavissa CSV-tiedostoina: <a href="data/export/">Lataa CSV-data</a>.</p>
 
   <section>
     <h2>Valtion talousarvion kokonaisvuosimuutos</h2>
@@ -404,6 +405,7 @@
       function renderDrillDetailBars(ministryName, subItems) {
         const el = document.getElementById("drill-detail");
         if (!el || !subItems || !subItems.length) return;
+        subItems = [...subItems].sort((a, b) => (b.value || 0) - (a.value || 0));
         el.style.display = "block";
         el.innerHTML = "<p class=\"drill-title\"><strong>" + ministryName + "</strong> (2025 taso, milj. €)</p><div id=\"drill-detail-chart\"></div>";
         const total = subItems.reduce((sum, s) => sum + (s.value || 0), 0);
@@ -636,11 +638,13 @@
         if (!sub || !sub.length || !item.y2025 || !item.y2026) return [];
         const r2026 = item.y2026 / item.y2025;
         const r2023 = item.y2023 / item.y2025;
-        return sub.map((s) => ({
-          name: s.name,
-          y2023: Math.round((s.value || s.valuePrev) * r2023),
-          y2026: Math.round((s.value || 0) * r2026),
-        }));
+        return sub
+          .map((s) => ({
+            name: s.name,
+            y2023: Math.round((s.value || s.valuePrev) * r2023),
+            y2026: Math.round((s.value || 0) * r2026),
+          }))
+          .sort((a, b) => b.y2026 - a.y2026);
       }
 
       function renderBars() {
@@ -881,7 +885,7 @@
         data.forEach((d) => {
           rows.push({ type: "main", id: d.id, name: d.name, delta: d.delta, pct: d.pct });
           if (expandedId === String(d.id)) {
-            const subs = getSubItems(d);
+            const subs = getSubItems(d).sort((a, b) => (b.value || 0) - (a.value || 0));
             subs.forEach((s, i) => {
               const delta = s.valuePrev != null ? s.value - s.valuePrev : null;
               const deltaPct = s.valuePrev && s.valuePrev !== 0 ? (delta / s.valuePrev) * 100 : null;
@@ -1087,7 +1091,7 @@
         if (!d) return;
         const el = document.getElementById("yoy-drill-detail");
         const { yearFrom, yearTo } = getYearPair();
-        const subs = getSubItems(d);
+        const subs = getSubItems(d).sort((a, b) => (b.value || 0) - (a.value || 0));
         const hasScaled2026 = yearFrom === 2025 && yearTo === 2026 && (subItemsByMinistry[String(d.id)] || []).length > 0 && subs.length > 1;
         const hasScaled2023_2026 = yearFrom === 2023 && yearTo === 2026 && (subItemsByMinistry[String(d.id)] || []).length > 0 && subs.length > 1;
         let html = "<p class=\"drill-title\"><strong>Kustannuspaikat: " + d.name + "</strong></p><p class=\"note\">Muutos " + yearFrom + "→" + yearTo + " (milj. € ja %). Klikkaa hallinnonalaa uudelleen sulkeaksesi.</p>";
