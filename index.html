@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8" />
+  <title>Suomen valtion talousarvio 2025–2026 – analyysi ja visualisoinnit</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent1: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #d29922;
+      --accent4: #bc8cff;
+      --red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.75rem; margin-top: 0; }
+    h2 { font-size: 1.25rem; color: var(--muted); margin-top: 2.5rem; border-bottom: 1px solid var(--surface); padding-bottom: 0.5rem; }
+    .chart-container { background: var(--surface); border-radius: 8px; padding: 1.25rem; margin: 1rem 0; }
+    .chart-title { font-weight: 600; margin-bottom: 0.75rem; }
+    .chart { width: 100%; }
+    .axis line, .axis path { stroke: var(--muted); }
+    .axis text { fill: var(--muted); font-size: 11px; }
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin-top: 0.75rem; font-size: 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .delta-positive { color: var(--red); }
+    .delta-negative { color: var(--accent2); }
+    .grid line { stroke: var(--muted); stroke-opacity: 0.35; }
+    .grid .tick line { stroke-dasharray: 2,4; }
+    .breakdown-grid .tick line { stroke-dasharray: none; stroke-opacity: 0.2; }
+    .breakdown-bars rect.bar { stroke: none; }
+    .mandated-breakdown { margin-top: 1.25rem; padding: 1rem 0 0 1rem; border-left: 3px solid var(--accent1); background: rgba(0,0,0,0.12); border-radius: 0 8px 8px 0; }
+    .mandated-breakdown h3 { margin: 0 0 0.75rem 0; font-size: 1rem; }
+    .mandated-breakdown table { border-collapse: collapse; font-size: 0.9rem; }
+    .mandated-breakdown th, .mandated-breakdown td { padding: 0.35rem 1rem 0.35rem 0; text-align: right; }
+    .mandated-breakdown th { text-align: left; color: var(--muted); font-weight: 500; }
+    .mandated-breakdown td.negative { color: var(--accent2); }
+    .mandated-breakdown td.positive { color: var(--red); }
+    .mandated-breakdown-chart { margin-bottom: 0.5rem; }
+    .mandated-bar:hover { filter: brightness(1.1); }
+    .legend-box { margin-top: 0.75rem; padding: 0.6rem 0 0; border-top: 1px solid rgba(139,148,158,0.25); }
+    .legend-box .legend-item { margin-right: 0.25rem; }
+    .simulator { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(139,148,158,0.25); }
+    .simulator h3 { font-size: 1.1rem; margin: 0 0 0.5rem; color: var(--text); }
+    .simulator .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-bottom: 1rem; }
+    .simulator .control-group { display: flex; align-items: center; gap: 0.5rem; }
+    .simulator label { font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
+    .simulator input[type="range"] { width: 200px; min-width: 160px; accent-color: var(--accent1); }
+    .simulator output { font-variant-numeric: tabular-nums; min-width: 3.5rem; font-weight: 600; color: var(--accent1); }
+    .simulator select { background: var(--bg); color: var(--text); border: 1px solid var(--muted); border-radius: 4px; padding: 0.35rem 0.5rem; font-size: 0.9rem; }
+    .simulator input:focus-visible, .simulator select:focus-visible { outline: 2px solid var(--accent1); outline-offset: 2px; }
+    .simulator-summary { margin-top: 1rem; padding: 0.75rem 1rem; background: var(--bg); border-radius: 6px; font-size: 0.95rem; }
+    .simulator-summary strong { color: var(--accent1); }
+    section { max-width: 1000px; }
+    .note { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+    .search-wrap { margin-bottom: 1rem; }
+    .search-wrap input { width: 100%; max-width: 320px; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--muted); border-radius: 6px; color: var(--text); font-size: 0.95rem; }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap input:focus { outline: 2px solid var(--accent1); outline-offset: 0; }
+    .drill-row { cursor: pointer; }
+    .drill-row:hover { background: rgba(88,166,255,0.08); }
+    .drill-children { margin-left: 1rem; padding-left: 0.75rem; border-left: 2px solid var(--muted); }
+    .drill-detail { margin-top: 0.75rem; padding: 0.75rem; border-left: 2px solid var(--muted); background: rgba(0,0,0,0.15); border-radius: 0 6px 6px 0; }
+    .drill-detail .drill-title { margin: 0 0 0.5rem 0; }
+    .drill-detail .drill-list { margin: 0.5rem 0 0 1rem; padding-left: 0.5rem; }
+    .drill-detail .drill-table { border-collapse: collapse; font-size: 0.9rem; margin-top: 0.5rem; width: 100%; max-width: 640px; }
+    .drill-detail .drill-table th, .drill-detail .drill-table td { padding: 0.35rem 0.75rem 0.35rem 0; text-align: right; }
+    .drill-detail .drill-table th { text-align: left; color: var(--muted); font-weight: 500; }
+    .drill-detail .drill-table td.negative { color: var(--accent2); }
+    .drill-detail .drill-table td.positive { color: var(--red); }
+    .axis-label { fill: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Suomen valtion talousarvio 2023–2026</h1>
+  <p>Lähde: valtion talousarvion PDF-taulukot (talousarvio-2023-t.pdf, talousarvio-2024.pdf, talousarvio-2025-t.pdf, talousarvio-2026-t.pdf). Pääluokkakoodit (päätöskoodistot) noudattavat näissä PDF:eissä olevaa hallinnonalajaottelua. Taustalla hallitusesitykset HE 109/2024 vp (2025) ja HE 99/2025 vp (2026). Kategorisointi (lakisääteinen / harkinnanvarainen / sijoitus) ja velkasimulaatio oma tulkinta.</p>
+
+  <section>
+    <h2>Valtion talousarvion kokonaisvuosimuutos</h2>
+    <div class="chart-container">
+      <div class="chart-title">Määrärahat yhteensä (mrd. €) ja muutos edelliseen vuoteen</div>
+      <div id="total-year-chart" class="chart"></div>
+      <div id="legend-total-year" class="legend legend-box" role="group" aria-label="Selite"></div>
+      <p class="note">Y-akseli: määrärahat mrd. € (kokonaisluvut). Palkin alla: muutos edelliseen vuoteen (mrd. € ja %).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Määrärahat hallinnonaloittain (drillable, haettavissa)</h2>
+    <div class="chart-container">
+      <div class="chart-title">Hallinnonalakohtaiset määrärahat (milj. €). Voit hakea alla olevalla hakukentällä ja avata yksityiskohdat (VM, STM) klikkaamalla.</div>
+      <div class="search-wrap">
+        <label for="budget-search">Hae hallinnonalaa tai nimeä</label>
+        <input type="search" id="budget-search" placeholder="Esim. puolustus, opetus, VM, STM..." aria-label="Hae hallinnonalaa">
+      </div>
+      <div id="breakdown-chart" class="chart"></div>
+      <div id="breakdown-legend" class="legend legend-box"></div>
+      <div id="drill-detail" class="drill-children" style="display:none; margin-top: 0.75rem;"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Menot kategorioittain (milj. €)</h2>
+    <div class="chart-container">
+      <div class="chart-title">Lakisääteiset vs. harkinnanvaraiset vs. sijoitusluonteiset</div>
+      <div id="stacked-bar" class="chart"></div>
+      <div id="legend-stacked" class="legend"></div>
+      <div id="mandated-breakdown" class="mandated-breakdown" aria-labelledby="mandated-breakdown-heading"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Vuoden muutos edelliseen (YoY delta)</h2>
+    <div class="chart-container">
+      <div class="chart-title" id="yoy-chart-title">Määrärahojen muutos (milj. € ja %). Valitse vertailuvuodet ja klikkaa mitä tahansa hallinnonalaa kustannuspaikkojen jaotteluun (kaikilta löytyy vähintään yhteensä-rivi).</div>
+      <div class="control-group" style="margin-bottom: 0.75rem;">
+        <label for="yoy-year-pair">Vertailu</label>
+        <select id="yoy-year-pair" aria-label="Vertailuvuosipari">
+          <option value="2025-2026">2025 → 2026</option>
+          <option value="2024-2025">2024 → 2025</option>
+          <option value="2023-2024">2023 → 2024</option>
+          <option value="2023-2026">2023 → 2026</option>
+        </select>
+      </div>
+      <div id="delta-bars" class="chart"></div>
+      <div id="legend-delta" class="legend legend-box"></div>
+      <div id="yoy-drill-detail" class="drill-detail" style="display:none;" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Velkasuhteen simulointi (valtionvelka % BKT)</h2>
+    <div class="chart-container">
+      <div class="chart-title">Mitä tapahtuu velkasuhteelle eri BKT-kasvuskenaarioilla? (oletus: primäärialijäämä pysyy)</div>
+      <div id="debt-path" class="chart"></div>
+      <div id="legend-debt" class="legend"></div>
+      <p class="note">Seinä = velkasuhde karkailee käsistä; usein yhdistelmä väestörakennetta ja hitaan tuottavuuden kasvua.</p>
+
+      <div class="simulator" id="debt-simulator" aria-labelledby="simulator-heading">
+        <h3 id="simulator-heading">Kokeile itse</h3>
+        <p class="note">Valitse BKT-kasvu ja primäärialijäämän oletus. Graafi ja yhteenveto päivittyvät heti.</p>
+        <div class="controls" role="group" aria-label="Simulaattorin säätimet">
+          <div class="control-group">
+            <label for="growth-slider">BKT-kasvu (reaalinen)</label>
+            <input type="range" id="growth-slider" min="-2" max="3" step="0.25" value="1" aria-valuemin="-2" aria-valuemax="3" aria-valuenow="1" aria-valuetext="1 prosentti">
+            <output id="growth-value" for="growth-slider" aria-live="polite">1,0 %</output>
+          </div>
+          <div class="control-group">
+            <label for="deficit-mode">Primäärialijäämä</label>
+            <select id="deficit-mode" aria-describedby="deficit-desc">
+              <option value="constant">Pysyy nykyisellään</option>
+              <option value="improving">Hitaasti paraneva</option>
+            </select>
+          </div>
+        </div>
+        <p id="deficit-desc" class="note" style="margin-top:0">Pysyy nykyisellään = sama % BKT:stä joka vuosi. Hitaasti paraneva = oletusparannus vuosittain.</p>
+        <div id="interactive-debt-chart" class="chart"></div>
+        <div class="legend legend-box" id="interactive-legend">
+          <span class="legend-item"><span class="legend-swatch" style="background:var(--accent1)"></span> Valittu skenaario</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:var(--muted); opacity:0.6"></span> Vertailu: 0 % kasvu</span>
+        </div>
+        <p id="simulator-summary" class="simulator-summary" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <script src="data/budget.js"></script>
+  <script src="data/budget-full.js"></script>
+  <script>
+    (function () {
+      if (window.totalChartData && window.ministryChartData) return;
+      var totalByYear = { y2023: 81553, y2024: 87867, y2025: 88754, y2026: 90306 };
+      window.totalChartData = [2023,2024,2025,2026].map(function(y,i){
+        var total = totalByYear["y"+y], prev = i? totalByYear["y"+[2023,2024,2025,2026][i-1]] : null;
+        return { year: y, total: total, delta: prev!=null ? total-prev : null, deltaPct: prev ? (total-prev)/prev*100 : null };
+      });
+      var ministryRows = [
+        { id: "21", name: "Eduskunta", short: "Eduskunta", category: "discretionary", y2023: 137, y2024: 146, y2025: 148, y2026: 148 },
+        { id: "22", name: "Tasavallan presidentti", short: "Presidentti", category: "discretionary", y2023: 40, y2024: 48, y2025: 47, y2026: 29 },
+        { id: "23", name: "Valtioneuvoston kanslia", short: "VNK", category: "discretionary", y2023: 585, y2024: 259, y2025: 246, y2026: 239 },
+        { id: "24", name: "Ulkoministeriön hallinnonala", short: "Ulko", category: "discretionary", y2023: 1344, y2024: 1284, y2025: 1200, y2026: 1155 },
+        { id: "25", name: "Oikeusministeriön hallinnonala", short: "Oikeus", category: "mandated", y2023: 1121, y2024: 1214, y2025: 1202, y2026: 1243 },
+        { id: "26", name: "Sisäministeriön hallinnonala", short: "Sisä", category: "discretionary", y2023: 2560, y2024: 2579, y2025: 2207, y2026: 2090 },
+        { id: "27", name: "Puolustusministeriön hallinnonala", short: "Puolustus", category: "discretionary", y2023: 6401, y2024: 5973, y2025: 6527, y2026: 6297 },
+        { id: "28", name: "Valtiovarainministeriön hallinnonala", short: "VM", category: "mandated", y2023: 34226, y2024: 38091, y2025: 40210, y2026: 41840 },
+        { id: "29", name: "Opetus- ja kulttuuriministeriön hallinnonala", short: "Opetus", category: "investment", y2023: 7780, y2024: 8041, y2025: 8452, y2026: 8934 },
+        { id: "30", name: "Maa- ja metsätalousministeriön hallinnonala", short: "MMM", category: "mixed", y2023: 2720, y2024: 2655, y2025: 2621, y2026: 2553 },
+        { id: "31", name: "Liikenne- ja viestintäministeriön hallinnonala", short: "Liikenne", category: "investment", y2023: 3554, y2024: 3616, y2025: 3598, y2026: 3849 },
+        { id: "32", name: "Työ- ja elinkeinoministeriön hallinnonala", short: "TEM", category: "mixed", y2023: 3854, y2024: 4232, y2025: 3631, y2026: 3349 },
+        { id: "33", name: "Sosiaali- ja terveysministeriön hallinnonala", short: "STM", category: "mandated", y2023: 15905, y2024: 16311, y2025: 15221, y2026: 14840 },
+        { id: "35", name: "Ympäristöministeriön hallinnonala", short: "Ym", category: "investment", y2023: 373, y2024: 243, y2025: 252, y2026: 494 },
+        { id: "36", name: "Valtionvelan korot", short: "Korkomenot", category: "mandated", y2023: 2323, y2024: 3177, y2025: 3191, y2026: 3246 }
+      ];
+      window.ministryChartData = ministryRows.map(function(m){
+        var v = m.y2025, v2 = m.y2026;
+        return { id: m.id, name: m.name, short: m.short, category: m.category, y2023: m.y2023, y2024: m.y2024, y2025: v, y2026: v2, delta: v2-v, deltaPct: v ? (v2-v)/v*100 : 0, searchText: (m.name+" "+m.short).toLowerCase() };
+      });
+      var cats = { mandated: {}, discretionary: {}, investment: {}, mixed: {} };
+      [2023,2024,2025,2026].forEach(function(y){
+        var key = "y"+y;
+        ["mandated","discretionary","investment","mixed"].forEach(function(cat){
+          cats[cat][key] = ministryRows.filter(function(m){ return m.category === cat; }).reduce(function(s,m){ return s + (m[key]||0); }, 0);
+        });
+      });
+      window.categoryByYearData = [2023,2024,2025,2026].map(function(year){
+        var key = "y"+year;
+        return { year: year, mandated: cats.mandated[key]||0, discretionary: cats.discretionary[key]||0, investment: cats.investment[key]||0, mixed: cats.mixed[key]||0 };
+      });
+      window.categoryLabelsLong = { mandated: "1. Lakisääteiset ja demografian ajamat", discretionary: "2. Poliittisesti harkinnanvaraiset", investment: "3. Sijoitusluonteiset (tuotto riippuu kasvusta)", mixed: "Sekalaista (osittain lakisääteinen, osittain harkinnanvarainen/sijoitus)" };
+      window.subItemsExample = {
+        "28": [ { name: "Eläkkeet ja korvaukset", value: 6076 }, { name: "Hyvinvointialueiden rahoitus", value: 26236 }, { name: "Kuntien tukeminen", value: 3919 }, { name: "EU ja kansainväliset järjestöt", value: 2386 }, { name: "Muut", value: 1593 } ],
+        "33": [ { name: "Eläkkeet (valtion osuus)", value: 5547 }, { name: "Työttömyysturva", value: 1884 }, { name: "Sairausvakuutus", value: 1872 }, { name: "Perhe- ja asumisetuudet", value: 4002 }, { name: "Muut (STM)", value: 1916 } ]
+      };
+    })();
+  </script>
+  <script src="data/debt-simulation.js"></script>
+  <script>
+    const COLORS = {
+      mandated: "#58a6ff",
+      discretionary: "#d29922",
+      investment: "#3fb950",
+      mixed: "#8b949e",
+    };
+
+    // Velkasimulaatio: fallback jos debt-simulation.js ei lataudu (esim. file://)
+    (function () {
+      if (window.simulateDebtRatio && window.simulatedPaths) return;
+      const debtRatio2025 = 65.7;
+      const interestPaymentRatio2025 = (3.191 / 284.5) * 100;
+      const primaryDeficitRatio2025 = 4.2 - interestPaymentRatio2025;
+      window.macro = window.macro || {
+        debtRatio2025,
+        nominalInterestRate: 3,
+      };
+      window.simulateDebtRatio = window.simulateDebtRatio || function (opts) {
+        const growthRates = opts.growthRates || [-1, -0.5, 0, 0.5, 1, 2];
+        const horizon = opts.horizon !== undefined ? opts.horizon : 10;
+        const inflation = 2;
+        const nominalInterestRate = opts.nominalInterestRate ?? 3;
+        const primaryDeficitPath = opts.primaryDeficitPath || "constant";
+        const pd = primaryDeficitPath === "improving" ? 2.5 : primaryDeficitRatio2025;
+        const scenarios = {};
+        growthRates.forEach((g) => {
+          const n = g + inflation;
+          const r = nominalInterestRate;
+          const path = [debtRatio2025];
+          let d = debtRatio2025;
+          let pdYear = pd;
+          for (let t = 1; t <= horizon; t++) {
+            if (primaryDeficitPath === "improving") pdYear = Math.max(0, pd - t * 0.25);
+            d = d * (1 + (r - n) / 100) + pdYear;
+            path.push(Math.round(d * 10) / 10);
+          }
+          scenarios[`${g}%`] = { g, n, path, label: "BKT-kasvu " + g + " %" };
+        });
+        return scenarios;
+      };
+      window.GROWTH_SCENARIOS = window.GROWTH_SCENARIOS || [-1, -0.5, 0, 0.5, 1, 2];
+      window.simulatedPaths = window.simulatedPaths || window.simulateDebtRatio({
+        growthRates: window.GROWTH_SCENARIOS,
+        horizon: 10,
+        primaryDeficitPath: "constant",
+      });
+      window.simulationYears = window.simulationYears || Array.from({ length: 11 }, (_, i) => 2025 + i);
+    })();
+
+    // ---- Kokonaisvuosimuutos 2023–2026 ----
+    (function () {
+      const data = window.totalChartData || [];
+      if (data.length === 0) {
+        document.getElementById("total-year-chart").innerHTML = "<p class=\"note\">Data ei saatavilla. Avaa sivu paikallisella palvelimella (esim. npx serve .).</p>";
+        return;
+      }
+      const margin = { top: 24, right: 100, bottom: 48, left: 56 };
+      const width = 560 - margin.left - margin.right;
+      const height = 260 - margin.top - margin.bottom;
+
+      const x = d3.scaleBand().domain(data.map((d) => d.year)).range([0, width]).padding(0.35);
+      const maxTotal = Math.max(...data.map((d) => d.total));
+      const y = d3.scaleLinear().domain([0, maxTotal * 1.08]).range([height, 0]).nice();
+
+      const svg = d3
+        .select("#total-year-chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      svg.append("g")
+        .attr("class", "grid")
+        .call(d3.axisLeft(y).tickSize(width).tickFormat(""))
+        .call((g) => g.select(".domain").remove());
+
+      data.forEach((d) => {
+        const hasDelta = d.delta !== null;
+        svg
+          .append("rect")
+          .attr("x", x(d.year) + x.bandwidth() * 0.1)
+          .attr("y", y(d.total))
+          .attr("width", x.bandwidth() * 0.8)
+          .attr("height", y(0) - y(d.total))
+          .attr("fill", hasDelta && d.delta < 0 ? "var(--accent2)" : hasDelta && d.delta > 0 ? "var(--accent1)" : "var(--muted)");
+      });
+
+      function mrd(v) { return Math.round(v / 1000); }
+      data.forEach((d) => {
+        svg.append("text")
+          .attr("x", x(d.year) + x.bandwidth() / 2)
+          .attr("y", y(d.total) - 10)
+          .attr("text-anchor", "middle")
+          .attr("fill", "var(--text)")
+          .style("font-size", "13px")
+          .style("font-weight", "700")
+          .text(mrd(d.total) + " mrd. €");
+        if (d.delta !== null) {
+          const sign = d.delta >= 0 ? "+" : "";
+          const pctStr = (d.deltaPct >= 0 ? "+" : "") + Math.round(d.deltaPct) + " %";
+          const col = d.delta >= 0 ? "var(--red)" : "var(--accent2)";
+          const deltaG = svg.append("text")
+            .attr("x", x(d.year) + x.bandwidth() / 2)
+            .attr("y", y(d.total) + 22)
+            .attr("text-anchor", "middle")
+            .attr("fill", col)
+            .style("font-size", "12px")
+            .style("font-weight", "600")
+            .style("letter-spacing", "0.02em");
+          deltaG.append("tspan").attr("x", x(d.year) + x.bandwidth() / 2).attr("dy", "0").text(sign + mrd(d.delta) + " mrd. €");
+          deltaG.append("tspan").attr("x", x(d.year) + x.bandwidth() / 2).attr("dy", "1.2em").text("(" + pctStr + ")");
+        }
+      });
+
+      svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).tickFormat(d3.format("d")));
+      svg.append("g").call(d3.axisLeft(y).tickFormat((d) => mrd(d)));
+      svg.selectAll(".domain").attr("stroke", "var(--muted)");
+      svg.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "11px");
+      svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("y", -margin.left + 16).attr("x", -height / 2).attr("text-anchor", "middle").text("Määrärahat (mrd. €)");
+
+      d3.select("#legend-total-year").append("span").attr("class", "legend-item").html('<span class="legend-swatch" style="background:var(--accent1)"></span> Kasvu edelliseen vuoteen');
+      d3.select("#legend-total-year").append("span").attr("class", "legend-item").html('<span class="legend-swatch" style="background:var(--accent2)"></span> Vähennys edelliseen vuoteen');
+      d3.select("#legend-total-year").append("span").attr("class", "legend-item").html('<span class="legend-swatch" style="background:var(--muted)"></span> Ensimmäinen vuosi (ei vertailua)');
+    })();
+
+    // ---- Breakdown hallinnonaloittain: drillable + haku ----
+    (function () {
+      const ministryData = window.ministryChartData || [];
+      if (ministryData.length === 0) {
+        document.getElementById("breakdown-chart").innerHTML = "<p class=\"note\">Data ei latautunut. Varmista, että data/budget-full.js on käytettävissä.</p>";
+        return;
+      }
+      let filtered = [...ministryData].sort((a, b) => b.y2026 - a.y2026);
+      const margin = { top: 12, right: 90, bottom: 36, left: 280 };
+      const width = 640 - margin.left - margin.right;
+      const height = Math.max(320, ministryData.length * 22);
+
+      const x = d3.scaleLinear().domain([0, Math.max(...ministryData.map((d) => d.y2026)) * 1.05]).range([0, width]).nice();
+      const y = d3.scaleBand().domain(filtered.map((d) => d.name)).range([0, height]).padding(0.12);
+
+      const svg = d3
+        .select("#breakdown-chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      const gridG = svg.append("g").attr("class", "grid breakdown-grid").style("pointer-events", "none").call(d3.axisLeft(y).tickSize(width).tickFormat("")).call((g) => g.select(".domain").remove());
+      const yAxisG = svg.append("g").attr("class", "y-axis").style("pointer-events", "none").call(d3.axisLeft(y).tickFormat(""));
+      const xAxisG = svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(8).tickFormat((d) => d3.format(",.0f")(d)));
+      xAxisG.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "11px").attr("dy", function(_, i) { return i % 2 === 0 ? "0.32em" : "1.35em"; });
+      svg.selectAll(".domain").attr("stroke", "var(--muted)");
+      svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", height + 32).attr("text-anchor", "middle").text("Määrärahat 2026 (milj. €)");
+      const barsG = svg.append("g").attr("class", "breakdown-bars");
+
+      function render() {
+        filtered = ministryData.filter((m) => !window._budgetSearchQ || m.searchText.includes(window._budgetSearchQ));
+        filtered.sort((a, b) => b.y2026 - a.y2026);
+        y.domain(filtered.map((d) => d.name));
+        gridG.call(d3.axisLeft(y).tickSize(width).tickFormat("")).call((g) => g.select(".domain").remove());
+        yAxisG.call(d3.axisLeft(y).tickFormat(""));
+
+        barsG.selectAll("rect.bar").remove();
+        filtered.forEach((d) => {
+          const barWidth = Math.max(2, x(d.y2026));
+          barsG.append("rect")
+            .attr("class", "bar drill-row")
+            .attr("x", 0)
+            .attr("y", y(d.name) + 1)
+            .attr("height", Math.max(2, y.bandwidth() - 2))
+            .attr("width", barWidth)
+            .attr("fill", COLORS[d.category] || "#8b949e")
+            .style("shape-rendering", "crispEdges")
+            .on("click", () => {
+              const sub = (window.subItemsExample || {})[d.id];
+              const el = document.getElementById("drill-detail");
+              if (sub && sub.length) {
+                el.style.display = "block";
+                el.innerHTML = "<strong>" + d.name + "</strong> (2025 taso, milj. €):<ul>" + sub.map((s) => "<li>" + s.name + ": " + d3.format(",.0f")(s.value) + "</li>").join("") + "</ul>";
+              } else {
+                el.style.display = "none";
+              }
+            });
+        });
+
+        const labels = svg.selectAll("text.bar-label").data(filtered, (d) => d.id);
+        labels.exit().remove();
+        labels
+          .enter()
+          .append("text")
+          .attr("class", "bar-label")
+          .attr("dy", "0.35em")
+          .attr("fill", "var(--text)")
+          .style("font-size", "11px")
+          .merge(labels)
+          .attr("y", (d) => y(d.name) + y.bandwidth() / 2)
+          .attr("x", -8)
+          .attr("text-anchor", "end")
+          .text((d) => d.name)
+          .style("cursor", "pointer")
+          .on("click", function (ev, d) {
+            const sub = (window.subItemsExample || {})[d.id];
+            const el = document.getElementById("drill-detail");
+            if (sub && sub.length) {
+              el.style.display = "block";
+              el.innerHTML = "<strong>" + d.name + "</strong> (2025 taso, milj. €):<ul>" + sub.map((s) => "<li>" + s.name + ": " + d3.format(",.0f")(s.value) + "</li>").join("") + "</ul>";
+            } else {
+              el.style.display = "none";
+            }
+          });
+        const vals = svg.selectAll("text.bar-val").data(filtered, (d) => d.id);
+        vals.exit().remove();
+        vals
+          .enter()
+          .append("text")
+          .attr("class", "bar-val")
+          .attr("dy", "0.35em")
+          .attr("fill", "var(--muted)")
+          .style("font-size", "11px")
+          .style("pointer-events", "none")
+          .merge(vals)
+          .attr("y", (d) => y(d.name) + y.bandwidth() / 2)
+          .attr("x", (d) => x(d.y2026) + 4)
+          .text((d) => d3.format(",.0f")(d.y2026) + " milj. €");
+      }
+
+      document.getElementById("budget-search").addEventListener("input", function () {
+        window._budgetSearchQ = this.value.trim().toLowerCase();
+        render();
+      });
+      render();
+
+      ["mandated", "discretionary", "investment", "mixed"].forEach((cat) => {
+        const label = { mandated: "Lakisääteinen", discretionary: "Harkinnanvarainen", investment: "Sijoitus", mixed: "Sekalaista" }[cat];
+        d3.select("#breakdown-legend").append("span").attr("class", "legend-item").html('<span class="legend-swatch" style="background:' + COLORS[cat] + '"></span> ' + label);
+      });
+    })();
+
+    // ---- Stacked bar: kategorioittain 2023–2026 (tai 2025–2026 jos vain chartData) ----
+    (function () {
+      const categoryOrder = ["mandated", "discretionary", "investment", "mixed"];
+      const labels = window.categoryLabelsLong || { mandated: "1. Lakisääteiset ja demografian ajamat", discretionary: "2. Poliittisesti harkinnanvaraiset", investment: "3. Sijoitusluonteiset", mixed: "Sekalaista" };
+      let yearRows = window.categoryByYearData;
+      if (!yearRows || yearRows.length === 0) {
+        yearRows = [2025, 2026].map((year) => {
+          const key = "y" + year;
+          return {
+            year,
+            mandated: (chartData.byCategory.find((d) => d.category === "mandated") || {})[key] || 0,
+            discretionary: (chartData.byCategory.find((d) => d.category === "discretionary") || {})[key] || 0,
+            investment: (chartData.byCategory.find((d) => d.category === "investment") || {})[key] || 0,
+            mixed: (chartData.byCategory.find((d) => d.category === "mixed") || {})[key] || 0,
+          };
+        });
+      }
+      const years = yearRows.map((d) => d.year);
+      const maxTotal = Math.max(...yearRows.map((r) => r.mandated + r.discretionary + r.investment + r.mixed));
+      const margin = { top: 20, right: 20, bottom: 40, left: 52 };
+      const width = Math.max(400, years.length * 120) - margin.left - margin.right;
+      const height = 220 - margin.top - margin.bottom;
+
+      const x = d3.scaleBand().domain(years).range([0, width]).padding(0.25);
+      const y = d3.scaleLinear().domain([0, maxTotal * 1.02]).range([height, 0]).nice();
+
+      const svg = d3
+        .select("#stacked-bar")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      svg.append("g")
+        .attr("class", "grid")
+        .call(d3.axisLeft(y).tickSize(width).tickFormat(""))
+        .call((g) => g.select(".domain").remove());
+
+      yearRows.forEach((row) => {
+        let y0 = 0;
+        categoryOrder.forEach((cat) => {
+          const val = row[cat] || 0;
+          if (val <= 0) return;
+          svg
+            .append("rect")
+            .attr("x", x(row.year) + x.bandwidth() * 0.08)
+            .attr("y", y(y0 + val))
+            .attr("height", y(y0) - y(y0 + val))
+            .attr("width", x.bandwidth() * 0.84)
+            .attr("fill", COLORS[cat])
+            .attr("data-category", cat);
+          y0 += val;
+        });
+      });
+
+      svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).tickFormat(d3.format("d")));
+      svg.append("g").call(d3.axisLeft(y).tickFormat((d) => d3.format(",.0f")(d)));
+      svg.selectAll(".domain").attr("stroke", "var(--muted)");
+      svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("y", -margin.left + 14).attr("x", -height / 2).attr("text-anchor", "middle").text("Määrärahat (milj. €)");
+
+      d3.select("#legend-stacked").append("span").attr("class", "legend-item").style("margin-right", "0.5rem").text("Selite: ");
+      categoryOrder.forEach((cat) => {
+        d3.select("#legend-stacked")
+          .append("span")
+          .attr("class", "legend-item")
+          .html(`<span class="legend-swatch" style="background:${COLORS[cat]}"></span> ${labels[cat]}`);
+      });
+    })();
+
+    // ---- Lakisääteisten kasvun breakdown: palkkikuvaaja (laajennettavissa kustannuspaikoiksi) + taulukko ----
+    (function () {
+      const rows = window.ministryRows || window.ministryChartData || [];
+      const mandated = rows.filter((m) => m.category === "mandated");
+      if (mandated.length === 0) return;
+      const subItemsByMinistry = window.subItemsExample || {};
+      const total2023 = mandated.reduce((s, m) => s + (m.y2023 || 0), 0);
+      const total2026 = mandated.reduce((s, m) => s + (m.y2026 || 0), 0);
+      const totalDelta = total2026 - total2023;
+      const items = mandated
+        .map((m) => ({
+          id: m.id,
+          name: m.short || m.name,
+          y2023: m.y2023 || 0,
+          y2025: m.y2025,
+          y2026: m.y2026 || 0,
+          delta: (m.y2026 || 0) - (m.y2023 || 0),
+          pct: m.y2023 ? (((m.y2026 || 0) - m.y2023) / m.y2023) * 100 : 0,
+        }))
+        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      const fmt = (v) => (v >= 0 ? "+" : "") + d3.format(",.0f")(v);
+
+      const container = document.getElementById("mandated-breakdown");
+      const barChartId = "mandated-breakdown-bars";
+      let expandedId = null;
+
+      function getSubRows(item) {
+        const sub = subItemsByMinistry[item.id];
+        if (!sub || !sub.length || !item.y2025 || !item.y2026) return [];
+        const r2026 = item.y2026 / item.y2025;
+        const r2023 = item.y2023 / item.y2025;
+        return sub.map((s) => ({
+          name: s.name,
+          y2023: Math.round((s.value || s.valuePrev) * r2023),
+          y2026: Math.round((s.value || 0) * r2026),
+        }));
+      }
+
+      function renderBars() {
+        const mainRowH = 26;
+        const subRowH = 20;
+        const rowGap = 2;
+        const subGap = 4;
+        const margin = { top: 8, right: 90, bottom: 24, left: 200 };
+        const maxVal = Math.max(...items.map((d) => d.y2026), total2026) * 1.02;
+        const buildRows = () => {
+          const out = [];
+          items.forEach((it) => {
+            out.push({ type: "main", id: it.id, name: it.name, y2023: it.y2023, y2026: it.y2026, delta: it.delta, pct: it.pct });
+            if (expandedId === it.id) {
+              const subs = getSubRows(it);
+              const parentTotal = it.y2026 || 1;
+              subs.forEach((s) => out.push({ type: "sub", name: s.name, y2023: s.y2023, y2026: s.y2026, parentTotal }));
+            }
+          });
+          return out;
+        };
+        const chartRows = buildRows();
+        let yPos = 0;
+        chartRows.forEach((r, i) => {
+          if (r.type === "sub" && chartRows[i - 1] && chartRows[i - 1].type === "main") yPos += subGap;
+          r._y = yPos;
+          r._h = r.type === "main" ? mainRowH : subRowH;
+          yPos += r._h + rowGap;
+        });
+        const width = Math.min(560, 640 - margin.left - margin.right);
+        const height = Math.max(120, yPos);
+
+        d3.select("#" + barChartId).selectAll("*").remove();
+        const svg = d3
+          .select("#" + barChartId)
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        const x = d3.scaleLinear().domain([0, maxVal]).range([0, width]);
+
+        chartRows.forEach((r) => {
+          if (r.type === "main") {
+            const hasSub = (subItemsByMinistry[r.id] || []).length > 0;
+            svg.append("rect")
+              .attr("class", "mandated-bar")
+              .attr("y", r._y + 1)
+              .attr("height", r._h - 2)
+              .attr("x", 0)
+              .attr("width", x(r.y2026))
+              .attr("fill", r.delta >= 0 ? "var(--red)" : "var(--accent2)")
+              .attr("fill-opacity", 0.85)
+              .style("cursor", hasSub ? "pointer" : "default")
+              .on("click", () => {
+                if (!hasSub) return;
+                expandedId = expandedId === r.id ? null : r.id;
+                renderBars();
+              });
+            svg.append("text")
+              .attr("y", r._y + r._h / 2)
+              .attr("x", -8)
+              .attr("dy", "0.35em")
+              .attr("text-anchor", "end")
+              .attr("fill", "var(--text)")
+              .style("font-size", "12px")
+              .style("pointer-events", "none")
+              .text(r.name + (hasSub ? " ▸" : ""));
+            const shareOfTotal = total2026 ? ((r.y2026 / total2026) * 100).toFixed(1) : "";
+            svg.append("text")
+              .attr("y", r._y + r._h / 2)
+              .attr("x", x(r.y2026) + 6)
+              .attr("dy", "0.35em")
+              .attr("fill", "var(--muted)")
+              .style("font-size", "11px")
+              .style("pointer-events", "none")
+              .text(d3.format(",.0f")(r.y2026) + " milj. €  " + fmt(r.delta) + " (" + (r.pct >= 0 ? "+" : "") + r.pct.toFixed(1) + " %)" + (shareOfTotal ? "  · " + shareOfTotal + " % lakisääteisistä" : ""));
+          } else {
+            svg.append("rect")
+              .attr("class", "mandated-sub-bar")
+              .attr("y", r._y + 2)
+              .attr("height", r._h - 4)
+              .attr("x", 0)
+              .attr("width", Math.max(2, x(r.y2026)))
+              .attr("fill", "var(--accent1)")
+              .attr("fill-opacity", 0.75);
+            svg.append("text")
+              .attr("y", r._y + r._h / 2)
+              .attr("x", -8)
+              .attr("dy", "0.35em")
+              .attr("text-anchor", "end")
+              .attr("fill", "var(--muted)")
+              .style("font-size", "11px")
+              .style("pointer-events", "none")
+              .text("  " + r.name);
+            const pctShare = r.parentTotal ? ((r.y2026 / r.parentTotal) * 100).toFixed(1) : "";
+            svg.append("text")
+              .attr("y", r._y + r._h / 2)
+              .attr("x", x(r.y2026) + 6)
+              .attr("dy", "0.35em")
+              .attr("fill", "var(--muted)")
+              .style("font-size", "10px")
+              .style("pointer-events", "none")
+              .text(d3.format(",.0f")(r.y2026) + " milj. €" + (pctShare ? " (" + pctShare + " %)" : ""));
+          }
+        });
+
+        svg.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x).ticks(6).tickFormat(d3.format(",.0f")))
+          .call((g) => g.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "10px"));
+      }
+
+      container.innerHTML = "";
+      const heading = document.createElement("h3");
+      heading.id = "mandated-breakdown-heading";
+      heading.textContent = "Lakisääteisten kasvun muodostuma (2023→2026)";
+      container.appendChild(heading);
+      const note = document.createElement("p");
+      note.className = "note";
+      note.style.marginBottom = "0.75rem";
+      note.textContent = "Lakisääteisiin lasketaan VM, Oikeus, STM ja valtionvelan korot. Kasvu yhteensä " + fmt(totalDelta) + " milj. € (" + (total2023 ? ((totalDelta / total2023) * 100).toFixed(1) : "—") + " %). Klikkaa VM tai STM avataksesi kustannuspaikat.";
+      container.appendChild(note);
+      const barWrap = document.createElement("div");
+      barWrap.id = barChartId;
+      barWrap.className = "mandated-breakdown-chart";
+      container.appendChild(barWrap);
+      renderBars();
+
+      let table = "<table style=\"margin-top:1.25rem\"><thead><tr><th>Hallinnonala</th><th>2023 (milj. €)</th><th>2026 (milj. €)</th><th>Osuus 2026 (%)</th><th>Muutos (milj. €)</th><th>Muutos (%)</th></tr></thead><tbody>";
+      items.forEach((r) => {
+        const deltaClass = r.delta >= 0 ? "positive" : "negative";
+        const sharePct = total2026 ? ((r.y2026 / total2026) * 100).toFixed(1) : "—";
+        table += "<tr><th>" + r.name + "</th><td>" + d3.format(",.0f")(r.y2023) + "</td><td>" + d3.format(",.0f")(r.y2026) + "</td><td>" + sharePct + " %</td><td class=\"" + deltaClass + "\">" + fmt(r.delta) + "</td><td class=\"" + deltaClass + "\">" + (r.pct >= 0 ? "+" : "") + r.pct.toFixed(1) + " %</td></tr>";
+      });
+      table += "<tr style=\"font-weight:600\"><th>Yhteensä (lakisääteiset)</th><td>" + d3.format(",.0f")(total2023) + "</td><td>" + d3.format(",.0f")(total2026) + "</td><td>100 %</td><td class=\"" + (totalDelta >= 0 ? "positive" : "negative") + "\">" + fmt(totalDelta) + "</td><td class=\"" + (totalDelta >= 0 ? "positive" : "negative") + "\">" + (total2023 ? ((totalDelta / total2023) * 100).toFixed(1) : "—") + " %</td></tr></tbody></table>";
+      container.insertAdjacentHTML("beforeend", table);
+    })();
+
+    // ---- Delta bars: YoY change by ministry + alamomentit pääpalkin alla ----
+    (function () {
+      const subItemsByMinistry = window.subItemsExample || {};
+      const ministryDataFull = window.ministryChartData || [];
+      const margin = { top: 16, right: 100, bottom: 52, left: 280 };
+      const width = 720 - margin.left - margin.right;
+      const mainRowH = 26;
+      const subRowH = 22;
+      const rowGap = 2;
+      const subBlockGap = 6;
+
+      function getYearPair() {
+        const sel = document.getElementById("yoy-year-pair");
+        const val = (sel && sel.value) || "2025-2026";
+        const [from, to] = val.split("-").map(Number);
+        return { yearFrom: from, yearTo: to };
+      }
+
+      function getData() {
+        const { yearFrom, yearTo } = getYearPair();
+        const base = ministryDataFull.length ? ministryDataFull : chartData.byMinistry;
+        const yFrom = "y" + yearFrom;
+        const yTo = "y" + yearTo;
+        return base.map((m) => {
+          const vFrom = m[yFrom] != null ? m[yFrom] : (yearFrom === 2025 ? m.y2025 : null);
+          const vTo = m[yTo] != null ? m[yTo] : (yearTo === 2026 ? m.y2026 : null);
+          const delta = (vTo != null && vFrom != null) ? vTo - vFrom : 0;
+          const pct = (vFrom && vFrom !== 0) ? (delta / vFrom) * 100 : 0;
+          return {
+            id: m.id,
+            name: m.name,
+            y2023: m.y2023,
+            y2024: m.y2024,
+            y2025: m.y2025,
+            y2026: m.y2026,
+            [yFrom]: vFrom,
+            [yTo]: vTo,
+            delta,
+            pct,
+            yearFrom,
+            yearTo,
+          };
+        }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      }
+
+      function getSubItems(d) {
+        const { yearFrom, yearTo } = getYearPair();
+        const keyFrom = "y" + yearFrom;
+        const keyTo = "y" + yearTo;
+        const vFrom = d[keyFrom] != null ? d[keyFrom] : (yearFrom === 2025 ? d.y2025 : yearFrom === 2026 ? d.y2026 : null);
+        const vTo = d[keyTo] != null ? d[keyTo] : (yearTo === 2026 ? d.y2026 : yearTo === 2025 ? d.y2025 : null);
+        const sub = subItemsByMinistry[String(d.id)];
+        if (sub && sub.length) {
+          if (yearFrom === 2024 && yearTo === 2025) {
+            const ratioPrev = d.y2024 != null && d.y2025 ? d.y2024 / d.y2025 : null;
+            return sub.map((s) => ({
+              name: s.name,
+              value: s.value,
+              valuePrev: s.valuePrev != null ? s.valuePrev : (ratioPrev ? Math.round(s.value * ratioPrev) : null),
+            }));
+          }
+          if (yearFrom === 2025 && yearTo === 2026 && d.y2025 && d.y2026) {
+            const ratio = d.y2026 / d.y2025;
+            return sub.map((s) => ({
+              name: s.name,
+              value: Math.round(s.value * ratio),
+              valuePrev: s.value,
+            }));
+          }
+          if (yearFrom === 2023 && yearTo === 2024 && d.y2023 != null && d.y2024 != null && d.y2025) {
+            const rFrom = d.y2023 / d.y2025;
+            const rTo = d.y2024 / d.y2025;
+            return sub.map((s) => ({
+              name: s.name,
+              value: Math.round(s.value * rTo),
+              valuePrev: Math.round(s.value * rFrom),
+            }));
+          }
+          if (yearFrom === 2023 && yearTo === 2026 && d.y2023 != null && d.y2026 != null && d.y2025) {
+            const rFrom = d.y2023 / d.y2025;
+            const rTo = d.y2026 / d.y2025;
+            return sub.map((s) => ({
+              name: s.name,
+              value: Math.round(s.value * rTo),
+              valuePrev: Math.round(s.value * rFrom),
+            }));
+          }
+        }
+        const fallbackValue = vTo != null ? vTo : (d.y2026 != null ? d.y2026 : d.y2025 != null ? d.y2025 : 0);
+        const fallbackPrev = vFrom != null ? vFrom : null;
+        return [{ name: "Määrärahat yhteensä", value: fallbackValue, valuePrev: fallbackPrev }];
+      }
+
+      function buildRows() {
+        const data = getData();
+        const expandedId = window._yoyExpandedId != null ? String(window._yoyExpandedId) : null;
+        const rows = [];
+        data.forEach((d) => {
+          rows.push({ type: "main", id: d.id, name: d.name, delta: d.delta, pct: d.pct });
+          if (expandedId === String(d.id)) {
+            const subs = getSubItems(d);
+            subs.forEach((s, i) => {
+              const delta = s.valuePrev != null ? s.value - s.valuePrev : null;
+              const deltaPct = s.valuePrev && s.valuePrev !== 0 ? (delta / s.valuePrev) * 100 : null;
+              rows.push({
+                type: "sub",
+                id: d.id + "-sub-" + i,
+                parentId: d.id,
+                parentName: d.name,
+                name: s.name,
+                value: s.value,
+                valuePrev: s.valuePrev,
+                delta,
+                deltaPct,
+              });
+            });
+          }
+        });
+        return rows;
+      }
+
+      function renderDeltaChart() {
+        const rows = buildRows();
+        let yPos = 0;
+        let prevMain = false;
+        rows.forEach((r) => {
+          if (r.type === "sub" && prevMain) yPos += subBlockGap;
+          r.y = yPos;
+          r.height = r.type === "main" ? mainRowH : subRowH;
+          prevMain = r.type === "main";
+          yPos += r.height + rowGap;
+        });
+        const height = Math.max(340, yPos);
+
+        const mainRows = rows.filter((r) => r.type === "main");
+        const maxAbs = Math.max(...mainRows.map((d) => Math.abs(d.delta)), 500);
+        const round = (v) => Math.sign(v) * Math.ceil(Math.abs(v) / 500) * 500;
+        const xExtent = [Math.min(-500, round(-maxAbs * 1.15)), Math.max(500, round(maxAbs * 1.15))];
+        const xDelta = d3.scaleLinear().domain(xExtent).range([0, width]).nice();
+        const zero = xDelta(0);
+
+        const subRows = rows.filter((r) => r.type === "sub");
+        const maxSubVal = subRows.length ? Math.max(...subRows.map((r) => r.value), 1) : 30000;
+        const subBarWidth = width * 0.72;
+        const xValue = d3.scaleLinear().domain([0, maxSubVal]).range([0, subBarWidth]);
+
+        d3.select("#delta-bars").selectAll("*").remove();
+        const svg = d3
+          .select("#delta-bars")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        rows.forEach((r) => {
+          svg.append("line").attr("x1", 0).attr("x2", width).attr("y1", r.y).attr("y2", r.y).attr("stroke", "var(--muted)").attr("stroke-opacity", 0.25);
+          svg.append("line").attr("x1", 0).attr("x2", width).attr("y1", r.y + r.height).attr("y2", r.y + r.height).attr("stroke", "var(--muted)").attr("stroke-opacity", 0.25);
+        });
+        svg.append("g")
+          .attr("class", "grid")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(xDelta).tickSize(-height).tickFormat(""))
+          .call((g) => g.select(".domain").remove());
+
+        svg.append("line")
+          .attr("x1", zero).attr("x2", zero).attr("y1", 0).attr("y2", height)
+          .attr("stroke", "var(--muted)").attr("stroke-width", 1.5).attr("stroke-dasharray", "4 4");
+
+        const subBlockGroups = [];
+        let i = 0;
+        while (i < rows.length) {
+          if (rows[i].type === "sub") {
+            const startY = rows[i].y;
+            let endY = rows[i].y + rows[i].height;
+            const parentId = rows[i].parentId;
+            while (i + 1 < rows.length && rows[i + 1].type === "sub" && rows[i + 1].parentId === parentId) {
+              i++;
+              endY = rows[i].y + rows[i].height;
+            }
+            subBlockGroups.push({ y0: startY - 2, y1: endY + 2 });
+          }
+          i++;
+        }
+        subBlockGroups.forEach((g) => {
+          svg.insert("rect", "line")
+            .attr("class", "delta-sub-block-bg")
+            .attr("x", 0)
+            .attr("y", g.y0)
+            .attr("width", width)
+            .attr("height", g.y1 - g.y0)
+            .attr("rx", 4)
+            .attr("ry", 4)
+            .attr("fill", "rgba(0,0,0,0.22)")
+            .attr("stroke", "var(--muted)")
+            .attr("stroke-opacity", 0.5)
+            .attr("stroke-width", 1);
+        });
+
+        mainRows.forEach((d) => {
+          const r = rows.find((x) => x.type === "main" && x.id === d.id);
+          if (!r) return;
+          const barWidth = Math.max(3, Math.abs(xDelta(d.delta) - zero));
+          svg.append("rect")
+            .attr("class", "delta-bar")
+            .attr("y", r.y + 1)
+            .attr("height", r.height - 2)
+            .attr("x", d.delta >= 0 ? zero : xDelta(d.delta))
+            .attr("width", barWidth)
+            .attr("fill", d.delta >= 0 ? "var(--red)" : "var(--accent2)")
+            .style("cursor", "pointer")
+            .on("click", () => toggleExpand(d));
+        });
+
+        subRows.forEach((d) => {
+          const r = rows.find((x) => x.type === "sub" && x.id === d.id);
+          if (!r) return;
+          const barW = Math.max(4, xValue(d.value));
+          svg.append("rect")
+            .attr("class", "delta-sub-bar")
+            .attr("y", r.y + 2)
+            .attr("height", r.height - 4)
+            .attr("x", 0)
+            .attr("width", barW)
+            .attr("rx", 2)
+            .attr("ry", 2)
+            .attr("fill", "var(--accent1)")
+            .attr("fill-opacity", 0.85);
+          const valX = Math.min(barW + 6, subBarWidth + 8);
+          const txt = svg.append("text")
+            .attr("class", "sub-bar-val")
+            .attr("y", r.y + r.height / 2)
+            .attr("x", valX)
+            .attr("dy", "0.35em")
+            .style("font-size", "11px")
+            .style("font-weight", "500");
+          txt.append("tspan").attr("fill", "var(--text)").text(d3.format(",.0f")(d.value) + " milj. €");
+          if (d.delta != null && d.deltaPct != null) {
+            const deltaStr = (d.delta >= 0 ? "+" : "") + d.delta + " (" + (d.delta >= 0 ? "+" : "") + d.deltaPct.toFixed(1) + " %)";
+            txt.append("tspan").attr("dx", "8").attr("fill", d.delta >= 0 ? "var(--red)" : "var(--accent2)").style("font-size", "10px").text("  " + deltaStr);
+          }
+        });
+
+        function toggleExpand(d) {
+          window._yoyExpandedId = window._yoyExpandedId === d.id ? null : d.id;
+          renderDeltaChart();
+          const el = document.getElementById("yoy-drill-detail");
+          if (window._yoyExpandedId) {
+            el.style.display = "block";
+            refreshDrillDetailContent();
+          } else el.style.display = "none";
+        }
+
+        rows.forEach((r) => {
+          const label = r.type === "main" ? r.name : "  " + r.name;
+          const txt = svg.append("text")
+            .attr("class", "label")
+            .attr("y", r.y + r.height / 2)
+            .attr("x", -10)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "end")
+            .attr("fill", r.type === "sub" ? "var(--muted)" : "var(--text)")
+            .style("font-size", r.type === "sub" ? "11px" : "12px")
+            .text(label);
+          if (r.type === "main") {
+            txt.style("cursor", "pointer").on("click", () => toggleExpand(r));
+          }
+          if (r.type === "main") {
+            const d = r;
+            svg.append("text")
+              .attr("class", d.delta >= 0 ? "delta-positive" : "delta-negative")
+              .attr("y", r.y + r.height / 2)
+              .attr("x", xDelta(d.delta) + (d.delta >= 0 ? 6 : -6))
+              .attr("dy", "0.35em")
+              .attr("text-anchor", d.delta >= 0 ? "start" : "end")
+              .style("font-size", "11px")
+              .style("cursor", "pointer")
+              .on("click", () => toggleExpand(d))
+              .text((d.delta >= 0 ? "+" : "") + d.delta + " (" + d.pct.toFixed(1) + "%)");
+          }
+        });
+
+        svg.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(xDelta).tickFormat(d3.format(",.0f")))
+          .call((g) => g.select(".domain").attr("stroke", "var(--muted)"))
+          .call((g) => g.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "11px"));
+        const { yearFrom, yearTo } = getYearPair();
+        const axisLabel = svg.append("text")
+          .attr("x", width / 2)
+          .attr("y", height + 36)
+          .attr("fill", "var(--muted)")
+          .style("font-size", "11px")
+          .style("text-anchor", "middle");
+        axisLabel.append("tspan").attr("x", width / 2).attr("dy", "0").text("Muutos (milj. €)");
+        axisLabel.append("tspan").attr("x", width / 2).attr("dy", "1.2em").text("pääpalkit " + yearFrom + "→" + yearTo + "; alamomentit: määräraha " + yearTo);
+      }
+
+      function refreshDrillDetailContent() {
+        const expandedId = window._yoyExpandedId;
+        if (expandedId == null) return;
+        const data = getData();
+        const d = data.find((m) => String(m.id) === String(expandedId));
+        if (!d) return;
+        const el = document.getElementById("yoy-drill-detail");
+        const { yearFrom, yearTo } = getYearPair();
+        const subs = getSubItems(d);
+        const hasScaled2026 = yearFrom === 2025 && yearTo === 2026 && (subItemsByMinistry[String(d.id)] || []).length > 0 && subs.length > 1;
+        const hasScaled2023_2026 = yearFrom === 2023 && yearTo === 2026 && (subItemsByMinistry[String(d.id)] || []).length > 0 && subs.length > 1;
+        let html = "<p class=\"drill-title\"><strong>Kustannuspaikat: " + d.name + "</strong></p><p class=\"note\">Muutos " + yearFrom + "→" + yearTo + " (milj. € ja %). Klikkaa hallinnonalaa uudelleen sulkeaksesi.</p>";
+        if (hasScaled2026) html += "<p class=\"note\" style=\"margin-bottom:0.5rem\">2026 taso on arvio (hallinnonalan kokonaismäärän suhde 2025→2026 skaalattu kustannuspaikoille).</p>";
+        if (hasScaled2023_2026) html += "<p class=\"note\" style=\"margin-bottom:0.5rem\">2023 ja 2026 tasot ovat arvio (vuoden 2025 kustannuspaikkajakauma skaalattu hallinnonalan kokonaismäärällä).</p>";
+        html += "<table class=\"drill-table\"><thead><tr><th>Kustannuspaikka</th><th>" + yearFrom + " (milj. €)</th><th>" + yearTo + " (milj. €)</th><th>Muutos (milj. €)</th><th>Muutos (%)</th></tr></thead><tbody>";
+        subs.forEach((s) => {
+          const delta = s.valuePrev != null ? s.value - s.valuePrev : null;
+          const pct = s.valuePrev && s.valuePrev !== 0 ? ((s.value - s.valuePrev) / s.valuePrev) * 100 : null;
+          const deltaStr = delta != null ? (delta >= 0 ? "+" : "") + d3.format(",.0f")(delta) : "—";
+          const pctStr = pct != null ? (pct >= 0 ? "+" : "") + pct.toFixed(1) + " %" : "—";
+          const prevStr = s.valuePrev != null ? d3.format(",.0f")(s.valuePrev) : "—";
+          const valStr = d3.format(",.0f")(s.value);
+          const rowClass = delta != null && delta < 0 ? "negative" : delta != null ? "positive" : "";
+          html += "<tr><th>" + s.name + "</th><td>" + prevStr + "</td><td>" + valStr + "</td><td class=\"" + rowClass + "\">" + deltaStr + "</td><td class=\"" + rowClass + "\">" + pctStr + "</td></tr>";
+        });
+        html += "</tbody></table>";
+        el.innerHTML = html;
+      }
+
+      document.getElementById("yoy-year-pair").addEventListener("change", function () {
+        renderDeltaChart();
+        refreshDrillDetailContent();
+        const { yearFrom, yearTo } = getYearPair();
+        const titleEl = document.getElementById("yoy-chart-title");
+        if (titleEl) titleEl.textContent = "Määrärahojen muutos " + yearFrom + " → " + yearTo + " (milj. € ja %). Valitse vertailuvuodet ja klikkaa mitä tahansa hallinnonalaa kustannuspaikkojen jaotteluun (kaikilta löytyy vähintään yhteensä-rivi).";
+      });
+
+      if (!d3.select("#legend-delta").selectAll(".legend-item").size()) {
+        d3.select("#legend-delta").append("span").attr("class", "legend-item").html(
+          '<span class="legend-swatch" style="background:var(--accent2)"></span> Vähennys'
+        );
+        d3.select("#legend-delta").append("span").attr("class", "legend-item").html(
+          '<span class="legend-swatch" style="background:var(--red)"></span> Lisäys'
+        );
+        d3.select("#legend-delta").append("span").attr("class", "legend-item").html(
+          '<span class="legend-swatch" style="background:var(--accent1); opacity:0.8"></span> Alamomentit (2025)'
+        );
+      }
+      renderDeltaChart();
+    })();
+
+    // ---- Debt path by growth scenario ----
+    (function () {
+      const paths = window.simulatedPaths;
+      const years = window.simulationYears;
+      const growthScenarios = window.GROWTH_SCENARIOS || [-1, -0.5, 0, 0.5, 1, 2];
+      if (!paths || !years || Object.keys(paths).length === 0) {
+        document.getElementById("debt-path").innerHTML = "<p class=\"note\">Velkasimulaation data ei latautunut. Tarkista, että data/debt-simulation.js on käytettävissä.</p>";
+        return;
+      }
+      const margin = { top: 20, right: 140, bottom: 40, left: 50 };
+      const width = 640 - margin.left - margin.right;
+      const height = 360 - margin.top - margin.bottom;
+
+      const x = d3.scaleLinear().domain(d3.extent(years)).range([0, width]);
+      const maxD = Math.max(...Object.values(paths).flatMap((p) => p.path));
+      const minD = Math.min(...Object.values(paths).flatMap((p) => p.path));
+      const y = d3.scaleLinear()
+        .domain([Math.floor(minD / 10) * 10, Math.ceil(maxD / 10) * 10])
+        .range([height, 0])
+        .nice();
+
+      const svg = d3
+        .select("#debt-path")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // Ruudukko (vaakaviivat) – velkasuhde-% helpommin luettavaksi
+      svg.append("g")
+        .attr("class", "grid")
+        .call(d3.axisLeft(y).tickSize(width).tickFormat(""))
+        .call((g) => g.select(".domain").remove());
+
+      const colorScale = d3.scaleOrdinal(d3.schemeTableau10).domain(growthScenarios.map((g) => `${g}%`));
+
+      const line = d3
+        .line()
+        .x((_, i) => x(years[i]))
+        .y((d) => y(d));
+
+      Object.entries(paths).forEach(([key, sc]) => {
+        svg
+          .append("path")
+          .datum(sc.path)
+          .attr("fill", "none")
+          .attr("stroke", colorScale(key))
+          .attr("stroke-width", 2)
+          .attr("d", line);
+      });
+
+      svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).tickFormat(d3.format("d")));
+      svg.append("g").call(d3.axisLeft(y).tickFormat((d) => d + "%"));
+      svg.selectAll(".domain").attr("stroke", "var(--muted)");
+      svg.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "11px");
+      svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("y", -margin.left + 12).attr("x", -height / 2).attr("text-anchor", "middle").text("Velkasuhde (% BKT)");
+
+      // Selite
+      d3.select("#legend-debt").append("span").attr("class", "legend-item").style("margin-right", "0.5rem").text("BKT-kasvu: ");
+      growthScenarios.forEach((g) => {
+        const key = `${g}%`;
+        d3.select("#legend-debt")
+          .append("span")
+          .attr("class", "legend-item")
+          .html(`<span class="legend-swatch" style="background:${colorScale(key)}"></span> ${key}`);
+      });
+    })();
+
+    // ---- Interaktiivinen velkasuhdesimulaattori ----
+    (function () {
+      const simulateDebtRatio = window.simulateDebtRatio;
+      const macro = window.macro;
+      if (!simulateDebtRatio || !macro) {
+        document.getElementById("interactive-debt-chart").innerHTML = "<p class=\"note\">Simulaattorin data ei latautunut. Lataa sivu uudelleen tai avaa paikallisella palvelimella (esim. npx serve .).</p>";
+        return;
+      }
+      const horizon = 10;
+      const years = Array.from({ length: horizon + 1 }, (_, i) => 2025 + i);
+      const margin = { top: 16, right: 24, bottom: 40, left: 52 };
+      const width = 640 - margin.left - margin.right;
+      const height = 280 - margin.top - margin.bottom;
+      const yDomain = [50, 130];
+
+      const x = d3.scaleLinear().domain([years[0], years[years.length - 1]]).range([0, width]);
+      const y = d3.scaleLinear().domain(yDomain).range([height, 0]);
+
+      const svg = d3
+        .select("#interactive-debt-chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .attr("role", "img")
+        .attr("aria-label", "Velkasuhteen kehitys valitulla BKT-kasvulla")
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      svg.append("g")
+        .attr("class", "grid")
+        .call(d3.axisLeft(y).tickSize(width).tickFormat(""))
+        .call((g) => g.select(".domain").remove());
+
+      const pathGroup = svg.append("g").attr("aria-hidden", "true");
+      const refPathGroup = svg.append("g").attr("opacity", 0.35).attr("aria-hidden", "true");
+
+      const line = d3.line().x((_, i) => x(years[i])).y((d) => y(d));
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+      const yAxis = svg.append("g").call(d3.axisLeft(y).tickFormat((d) => d + "%"));
+      svg.selectAll(".domain").attr("stroke", "var(--muted)");
+      svg.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "11px");
+
+      function updateSimulator() {
+        const growthVal = parseFloat(document.getElementById("growth-slider").value);
+        const deficitMode = document.getElementById("deficit-mode").value;
+        document.getElementById("growth-value").value = growthVal.toFixed(1).replace(".", ",") + " %";
+        document.getElementById("growth-slider").setAttribute("aria-valuenow", growthVal);
+        document.getElementById("growth-slider").setAttribute("aria-valuetext", growthVal + " prosenttia");
+
+        const scenarios = simulateDebtRatio({
+          growthRates: [growthVal],
+          horizon,
+          primaryDeficitPath: deficitMode,
+          nominalInterestRate: macro.nominalInterestRate,
+        });
+        const path = scenarios[`${growthVal}%`].path;
+        const refScenarios = simulateDebtRatio({
+          growthRates: [0],
+          horizon,
+          primaryDeficitPath: "constant",
+        });
+        const refPath = refScenarios["0%"].path;
+
+        pathGroup.selectAll("path").data([path]).join("path")
+          .attr("fill", "none")
+          .attr("stroke", "var(--accent1)")
+          .attr("stroke-width", 3)
+          .attr("stroke-linecap", "round")
+          .attr("stroke-linejoin", "round")
+          .attr("d", line);
+        refPathGroup.selectAll("path").data([refPath]).join("path")
+          .attr("fill", "none")
+          .attr("stroke", "var(--muted)")
+          .attr("stroke-width", 1.5)
+          .attr("stroke-dasharray", "4 4")
+          .attr("d", line);
+
+        const endRatio = path[path.length - 1];
+        const summary = document.getElementById("simulator-summary");
+        summary.innerHTML = "BKT-kasvu <strong>" + growthVal.toFixed(1).replace(".", ",") + " %</strong>: " +
+          "velkasuhde vuonna <strong>" + years[years.length - 1] + "</strong> noin <strong>" + endRatio.toFixed(1).replace(".", ",") + " %</strong>. " +
+          (deficitMode === "improving" ? "Primäärialijäämä oletettu hitaasti paranevaksi." : "Primäärialijäämä pysyy oletuksena vakiona.");
+      }
+
+      document.getElementById("growth-slider").addEventListener("input", updateSimulator);
+      document.getElementById("deficit-mode").addEventListener("change", updateSimulator);
+      updateSimulator();
+    })();
+  </script>
+</body>
+</html>
