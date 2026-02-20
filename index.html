@@ -39,8 +39,8 @@
     .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin-top: 0.75rem; font-size: 12px; }
     .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
     .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
-    .delta-positive { color: var(--red); }
-    .delta-negative { color: var(--accent2); }
+    .delta-positive { color: var(--red); fill: var(--red); }
+    .delta-negative { color: var(--accent2); fill: var(--accent2); }
     .grid line { stroke: var(--muted); stroke-opacity: 0.35; }
     .grid .tick line { stroke-dasharray: 2,4; }
     .breakdown-grid .tick line { stroke-dasharray: none; stroke-opacity: 0.2; }
@@ -56,6 +56,7 @@
     .mandated-bar:hover { filter: brightness(1.1); }
     .legend-box { margin-top: 0.75rem; padding: 0.6rem 0 0; border-top: 1px solid rgba(139,148,158,0.25); }
     .legend-box .legend-item { margin-right: 0.25rem; }
+    .legend-box .legend-note { display: block; margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
     .simulator { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(139,148,158,0.25); }
     .simulator h3 { font-size: 1.1rem; margin: 0 0 0.5rem; color: var(--text); }
     .simulator .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-bottom: 1rem; }
@@ -1021,10 +1022,10 @@
             .attr("dy", "0.35em")
             .style("font-size", "11px")
             .style("font-weight", "500");
-          txt.append("tspan").attr("fill", "var(--text)").text(d3.format(",.0f")(d.value) + " milj. €");
+          txt.append("tspan").attr("fill", "#e6edf3").text(d3.format(",.0f")(d.value) + " milj. €");
           if (d.delta != null && d.deltaPct != null) {
             const deltaStr = (d.delta >= 0 ? "+" : "") + d.delta + " (" + (d.delta >= 0 ? "+" : "") + d.deltaPct.toFixed(1) + " %)";
-            txt.append("tspan").attr("dx", "8").attr("fill", d.delta >= 0 ? "var(--red)" : "var(--accent2)").style("font-size", "10px").text("  " + deltaStr);
+            txt.append("tspan").attr("dx", "8").attr("fill", d.delta >= 0 ? "#f85149" : "#3fb950").style("font-size", "10px").text("  " + deltaStr);
           }
         });
 
@@ -1040,13 +1041,14 @@
 
         rows.forEach((r) => {
           const label = r.type === "main" ? r.name : "  " + r.name;
+          const labelFill = r.type === "sub" ? "#8b949e" : "#e6edf3";
           const txt = svg.append("text")
             .attr("class", "label")
             .attr("y", r.y + r.height / 2)
             .attr("x", -10)
             .attr("dy", "0.35em")
             .attr("text-anchor", "end")
-            .attr("fill", r.type === "sub" ? "var(--muted)" : "var(--text)")
+            .attr("fill", labelFill)
             .style("font-size", r.type === "sub" ? "11px" : "12px")
             .text(label);
           if (r.type === "main") {
@@ -1054,14 +1056,17 @@
           }
           if (r.type === "main") {
             const d = r;
+            const fillColor = d.delta >= 0 ? "#f85149" : "#3fb950";
             svg.append("text")
               .attr("class", d.delta >= 0 ? "delta-positive" : "delta-negative")
               .attr("y", r.y + r.height / 2)
               .attr("x", xDelta(d.delta) + (d.delta >= 0 ? 6 : -6))
               .attr("dy", "0.35em")
               .attr("text-anchor", d.delta >= 0 ? "start" : "end")
+              .attr("fill", fillColor)
               .style("font-size", "11px")
               .style("cursor", "pointer")
+              .style("font-weight", "500")
               .on("click", () => toggleExpand(d))
               .text((d.delta >= 0 ? "+" : "") + d.delta + " (" + d.pct.toFixed(1) + "%)");
           }
@@ -1128,7 +1133,10 @@
           '<span class="legend-swatch" style="background:var(--red)"></span> Lisäys'
         );
         d3.select("#legend-delta").append("span").attr("class", "legend-item").html(
-          '<span class="legend-swatch" style="background:var(--accent1); opacity:0.8"></span> Alamomentit (2025)'
+          '<span class="legend-swatch" style="background:var(--accent1); opacity:0.8"></span> Alamomentit (määräraha vertailuvuoden loppuvuonna)'
+        );
+        d3.select("#legend-delta").append("span").attr("class", "legend-note").text(
+          "Palkin numerot: muutos milj. € ja prosentuaalinen muutos edellisestä vuodesta (esim. +7614 (22,2 %) = 7614 milj. € lisäys, 22,2 % kasvu)."
         );
       }
       renderDeltaChart();
