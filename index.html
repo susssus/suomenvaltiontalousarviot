@@ -100,7 +100,7 @@
   <section>
     <h2>Määrärahat hallinnonaloittain (drillable, haettavissa)</h2>
     <div class="chart-container">
-      <div class="chart-title">Hallinnonalakohtaiset määrärahat (milj. €). Voit hakea alla olevalla hakukentällä ja avata yksityiskohdat (VM, STM) klikkaamalla.</div>
+      <div class="chart-title">Hallinnonalakohtaiset määrärahat (milj. €). Hae alla olevalla kentällä ja avata kustannuspaikkajaottelu klikkaamalla mitä tahansa hallinnonalaa.</div>
       <div class="search-wrap">
         <label for="budget-search">Hae hallinnonalaa tai nimeä</label>
         <input type="search" id="budget-search" placeholder="Esim. puolustus, opetus, VM, STM..." aria-label="Hae hallinnonalaa">
@@ -220,8 +220,21 @@
       });
       window.categoryLabelsLong = { mandated: "1. Lakisääteiset ja demografian ajamat", discretionary: "2. Poliittisesti harkinnanvaraiset", investment: "3. Sijoitusluonteiset (tuotto riippuu kasvusta)", mixed: "Sekalaista (osittain lakisääteinen, osittain harkinnanvarainen/sijoitus)" };
       window.subItemsExample = {
+        "21": [ { name: "Määrärahat yhteensä", value: 148 } ],
+        "22": [ { name: "Määrärahat yhteensä", value: 47 } ],
+        "23": [ { name: "Määrärahat yhteensä", value: 246 } ],
+        "24": [ { name: "Ulkoasiainhallinto", value: 400 }, { name: "Kehitysyhteistyö", value: 664 }, { name: "Muut (Ulko)", value: 136 } ],
+        "25": [ { name: "Oikeuslaitos", value: 650 }, { name: "Rikosseuraamus", value: 294 }, { name: "Syyttäjät ja muut", value: 258 } ],
+        "26": [ { name: "Poliisi", value: 950 }, { name: "Pelastus", value: 113 }, { name: "Rajavartio ja maahanmuutto", value: 750 }, { name: "Muut (Sisä)", value: 394 } ],
+        "27": [ { name: "Puolustusvoimat", value: 5900 }, { name: "Kriisinhallinta ja muut", value: 627 } ],
         "28": [ { name: "Eläkkeet ja korvaukset", value: 6076 }, { name: "Hyvinvointialueiden rahoitus", value: 26236 }, { name: "Kuntien tukeminen", value: 3919 }, { name: "EU ja kansainväliset järjestöt", value: 2386 }, { name: "Muut", value: 1593 } ],
-        "33": [ { name: "Eläkkeet (valtion osuus)", value: 5547 }, { name: "Työttömyysturva", value: 1884 }, { name: "Sairausvakuutus", value: 1872 }, { name: "Perhe- ja asumisetuudet", value: 4002 }, { name: "Muut (STM)", value: 1916 } ]
+        "29": [ { name: "Opetushallitus ja koulutus", value: 2500 }, { name: "Yliopistot ja amkit", value: 2700 }, { name: "Tutkimus", value: 1200 }, { name: "Kulttuuri", value: 1100 }, { name: "Muut (opetus)", value: 952 } ],
+        "30": [ { name: "Maatalous ja ruoka", value: 1400 }, { name: "Metsä ja kalatalous", value: 900 }, { name: "Muut (MMM)", value: 321 } ],
+        "31": [ { name: "Väylät", value: 2200 }, { name: "Liikenne ja viestintä", value: 1100 }, { name: "Muut (Liikenne)", value: 298 } ],
+        "32": [ { name: "Työllisyys", value: 1800 }, { name: "Elinkeinot", value: 1200 }, { name: "Muut (TEM)", value: 631 } ],
+        "33": [ { name: "Eläkkeet (valtion osuus)", value: 5547 }, { name: "Työttömyysturva", value: 1884 }, { name: "Sairausvakuutus", value: 1872 }, { name: "Perhe- ja asumisetuudet", value: 4002 }, { name: "Muut (STM)", value: 1916 } ],
+        "35": [ { name: "Ympäristönsuojelu", value: 130 }, { name: "Luonto", value: 72 }, { name: "Muut (Ym)", value: 50 } ],
+        "36": [ { name: "Valtionvelan korot", value: 3191 } ]
       };
     })();
   </script>
@@ -384,6 +397,59 @@
       svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", height + 32).attr("text-anchor", "middle").text("Määrärahat 2026 (milj. €)");
       const barsG = svg.append("g").attr("class", "breakdown-bars");
 
+      function renderDrillDetailBars(ministryName, subItems) {
+        const el = document.getElementById("drill-detail");
+        if (!el || !subItems || !subItems.length) return;
+        el.style.display = "block";
+        el.innerHTML = "<p class=\"drill-title\"><strong>" + ministryName + "</strong> (2025 taso, milj. €)</p><div id=\"drill-detail-chart\"></div>";
+        const total = subItems.reduce((sum, s) => sum + (s.value || 0), 0);
+        const maxVal = Math.max(...subItems.map((s) => s.value || 0), 1);
+        const rowH = 22;
+        const chartMargin = { top: 4, right: 90, bottom: 24, left: 200 };
+        const chartWidth = Math.min(480, 640 - chartMargin.left - chartMargin.right);
+        const chartHeight = subItems.length * rowH;
+        const xScale = d3.scaleLinear().domain([0, maxVal * 1.02]).range([0, chartWidth]);
+        d3.select("#drill-detail-chart").selectAll("*").remove();
+        const chartSvg = d3
+          .select("#drill-detail-chart")
+          .append("svg")
+          .attr("width", chartWidth + chartMargin.left + chartMargin.right)
+          .attr("height", chartHeight + chartMargin.top + chartMargin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + chartMargin.left + "," + chartMargin.top + ")");
+        subItems.forEach((s, i) => {
+          const yPos = i * rowH;
+          const val = s.value || 0;
+          const pctShare = total ? ((val / total) * 100).toFixed(1) : "";
+          chartSvg.append("rect")
+            .attr("x", 0)
+            .attr("y", yPos + 2)
+            .attr("height", rowH - 4)
+            .attr("width", Math.max(2, xScale(val)))
+            .attr("fill", "var(--accent1)")
+            .attr("fill-opacity", 0.8);
+          chartSvg.append("text")
+            .attr("y", yPos + rowH / 2)
+            .attr("x", -6)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "end")
+            .attr("fill", "var(--text)")
+            .style("font-size", "11px")
+            .text(s.name);
+          chartSvg.append("text")
+            .attr("y", yPos + rowH / 2)
+            .attr("x", xScale(val) + 6)
+            .attr("dy", "0.35em")
+            .attr("fill", "var(--muted)")
+            .style("font-size", "11px")
+            .text(d3.format(",.0f")(val) + " milj. €" + (pctShare ? " (" + pctShare + " %)" : ""));
+        });
+        chartSvg.append("g")
+          .attr("transform", "translate(0," + chartHeight + ")")
+          .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format(",.0f")))
+          .call((g) => g.selectAll(".tick text").attr("fill", "var(--muted)").style("font-size", "10px"));
+      }
+
       function render() {
         filtered = ministryData.filter((m) => !window._budgetSearchQ || m.searchText.includes(window._budgetSearchQ));
         filtered.sort((a, b) => b.y2026 - a.y2026);
@@ -404,12 +470,11 @@
             .style("shape-rendering", "crispEdges")
             .on("click", () => {
               const sub = (window.subItemsExample || {})[d.id];
-              const el = document.getElementById("drill-detail");
               if (sub && sub.length) {
-                el.style.display = "block";
-                el.innerHTML = "<strong>" + d.name + "</strong> (2025 taso, milj. €):<ul>" + sub.map((s) => "<li>" + s.name + ": " + d3.format(",.0f")(s.value) + "</li>").join("") + "</ul>";
+                renderDrillDetailBars(d.name, sub);
               } else {
-                el.style.display = "none";
+                const el = document.getElementById("drill-detail");
+                if (el) el.style.display = "none";
               }
             });
         });
@@ -431,12 +496,11 @@
           .style("cursor", "pointer")
           .on("click", function (ev, d) {
             const sub = (window.subItemsExample || {})[d.id];
-            const el = document.getElementById("drill-detail");
             if (sub && sub.length) {
-              el.style.display = "block";
-              el.innerHTML = "<strong>" + d.name + "</strong> (2025 taso, milj. €):<ul>" + sub.map((s) => "<li>" + s.name + ": " + d3.format(",.0f")(s.value) + "</li>").join("") + "</ul>";
+              renderDrillDetailBars(d.name, sub);
             } else {
-              el.style.display = "none";
+              const el = document.getElementById("drill-detail");
+              if (el) el.style.display = "none";
             }
           });
         const vals = svg.selectAll("text.bar-val").data(filtered, (d) => d.id);

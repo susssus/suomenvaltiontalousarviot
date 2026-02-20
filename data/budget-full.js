@@ -36,13 +36,59 @@ const ministryRows = [
 ];
 
 // Alitaso: pääluokat / toimialat – value = 2025 (milj. €), valuePrev = 2024 (delta 2024→2025)
+// Kaikki hallinnonalat huomioitu: VM, Opetus, STM tarkemmin; muut aggregoidusti tai yhteensä-rivillä (talousarvio-PDF).
 const subItemsExample = {
+  "21": [{ name: "Määrärahat yhteensä", value: 148, valuePrev: 146 }],
+  "22": [{ name: "Määrärahat yhteensä", value: 47, valuePrev: 48 }],
+  "23": [{ name: "Määrärahat yhteensä", value: 246, valuePrev: 259 }],
+  "24": [
+    { name: "Ulkoasiainhallinto", value: 400, valuePrev: 390 },
+    { name: "Kansainvälinen kehitysyhteistyö", value: 664, valuePrev: 650 },
+    { name: "Muut (Ulko)", value: 136, valuePrev: 244 },
+  ],
+  "25": [
+    { name: "Oikeuslaitos ja tuomioistuimet", value: 650, valuePrev: 640 },
+    { name: "Rikosseuraamuslaitos", value: 294, valuePrev: 290 },
+    { name: "Syyttäjät ja muut", value: 258, valuePrev: 284 },
+  ],
+  "26": [
+    { name: "Poliisi", value: 950, valuePrev: 950 },
+    { name: "Pelastustoimi ja hätäkeskus", value: 113, valuePrev: 112 },
+    { name: "Rajavartiolaitos ja maahanmuutto", value: 750, valuePrev: 900 },
+    { name: "Muut (Sisä)", value: 394, valuePrev: 617 },
+  ],
+  "27": [
+    { name: "Puolustusvoimien toimintamenot", value: 5900, valuePrev: 5500 },
+    { name: "Sotilaallinen kriisinhallinta ja muut", value: 627, valuePrev: 473 },
+  ],
   "28": [
     { name: "Eläkkeet ja korvaukset", value: 6076, valuePrev: 5760 },
     { name: "Hyvinvointialueiden rahoitus", value: 26236, valuePrev: 24820 },
     { name: "Kuntien tukeminen", value: 3919, valuePrev: 3710 },
     { name: "EU ja kansainväliset järjestöt", value: 2386, valuePrev: 2260 },
     { name: "Muut (hallinto, verotus, Ahvenanmaa jne.)", value: 1593, valuePrev: 1541 },
+  ],
+  "29": [
+    { name: "Opetushallitus ja koulutus (esi-, perus-, lukio)", value: 2500, valuePrev: 2378 },
+    { name: "Yliopistot ja ammattikorkeakoulut", value: 2700, valuePrev: 2566 },
+    { name: "Tutkimus (Suomen Akatemia jne.)", value: 1200, valuePrev: 1141 },
+    { name: "Kulttuuri (museot, taide, kirjastot)", value: 1100, valuePrev: 1046 },
+    { name: "Muut (avustukset, kirkot, opintotuki, harrastustoiminta)", value: 952, valuePrev: 910 },
+  ],
+  "30": [
+    { name: "Maatalous ja ruoka", value: 1400, valuePrev: 1380 },
+    { name: "Metsä ja kalatalous", value: 900, valuePrev: 890 },
+    { name: "Muut (MMM)", value: 321, valuePrev: 385 },
+  ],
+  "31": [
+    { name: "Väylät (tiet, rautatiet, merenkulku)", value: 2200, valuePrev: 2150 },
+    { name: "Liikenne ja viestintä", value: 1100, valuePrev: 1150 },
+    { name: "Muut (Liikenne)", value: 298, valuePrev: 316 },
+  ],
+  "32": [
+    { name: "Työllisyys ja työmarkkinat", value: 1800, valuePrev: 2000 },
+    { name: "Elinkeinot ja yritystuki", value: 1200, valuePrev: 1300 },
+    { name: "Muut (TEM)", value: 631, valuePrev: 932 },
   ],
   "33": [
     { name: "Eläkkeet (valtion osuus)", value: 5547, valuePrev: 5780 },
@@ -51,6 +97,12 @@ const subItemsExample = {
     { name: "Perhe- ja asumisetuudet", value: 4002, valuePrev: 3980 },
     { name: "Muut (STM)", value: 1916, valuePrev: 2641 },
   ],
+  "35": [
+    { name: "Ympäristönsuojelu ja vesistöt", value: 130, valuePrev: 130 },
+    { name: "Luonto ja luonnonvarat", value: 72, valuePrev: 63 },
+    { name: "Muut (Ym)", value: 50, valuePrev: 50 },
+  ],
+  "36": [{ name: "Valtionvelan korot", value: 3191, valuePrev: 3177 }],
 };
 
 // Kokonaisvuosimuutokset: vuosi -> { total, delta, deltaPct } edelliseen
